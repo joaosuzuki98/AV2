@@ -3,6 +3,8 @@ package com.autobots.automanager.controles;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,21 +40,27 @@ public class ClienteControle {
 	}
 
 	@GetMapping
-	public ResponseEntity<List<Cliente>> obterClientes() {
+	public ResponseEntity<CollectionModel<Cliente>> obterClientes() {
 		List<Cliente> clientes = repositorio.findAll();
 		adicionadorLink.adicionarLink(clientes);
-		return new ResponseEntity<>(clientes, HttpStatus.OK);
+		CollectionModel<Cliente> colecao = CollectionModel.of(clientes);
+		colecao.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(ClienteControle.class).obterClientes())
+				.withSelfRel());
+		colecao.add(WebMvcLinkBuilder.linkTo(WebMvcLinkBuilder.methodOn(ClienteControle.class).cadastrarCliente(null))
+				.withRel("create"));
+		return new ResponseEntity<>(colecao, HttpStatus.OK);
 	}
 
 	@PostMapping
 	public ResponseEntity<?> cadastrarCliente(@RequestBody Cliente cliente) {
-		HttpStatus status = HttpStatus.CONFLICT;
-		if (cliente.getId() == null) {
-			repositorio.save(cliente);
-			status = HttpStatus.CREATED;
+		if (cliente.getId() != null) {
+			return new ResponseEntity<>(HttpStatus.CONFLICT);
 		}
-		return new ResponseEntity<>(status);
-
+		Cliente cadastrado = repositorio.save(cliente);
+		adicionadorLink.adicionarLink(cadastrado);
+		return ResponseEntity.created(WebMvcLinkBuilder
+				.linkTo(WebMvcLinkBuilder.methodOn(ClienteControle.class).obterCliente(cadastrado.getId())).toUri())
+				.body(cadastrado);
 	}
 
 	@PutMapping("/{id}")
@@ -63,8 +71,9 @@ public class ClienteControle {
 		}
 		ClienteAtualizador atualizador = new ClienteAtualizador();
 		atualizador.atualizar(cliente, atualizacao);
-		repositorio.save(cliente);
-		return new ResponseEntity<>(HttpStatus.OK);
+		Cliente atualizado = repositorio.save(cliente);
+		adicionadorLink.adicionarLink(atualizado);
+		return new ResponseEntity<>(atualizado, HttpStatus.OK);
 	}
 
 	@DeleteMapping("/{id}")
@@ -74,6 +83,6 @@ public class ClienteControle {
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
 		repositorio.delete(cliente);
-		return new ResponseEntity<>(HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
 	}
 }
