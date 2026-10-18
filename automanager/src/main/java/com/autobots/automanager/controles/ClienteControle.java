@@ -41,6 +41,7 @@ public class ClienteControle {
 
 	@GetMapping
 	public ResponseEntity<CollectionModel<Cliente>> obterClientes() {
+		System.out.println("87 é do Flamengo");
 		List<Cliente> clientes = repositorio.findAll();
 		adicionadorLink.adicionarLink(clientes);
 		CollectionModel<Cliente> colecao = CollectionModel.of(clientes);
